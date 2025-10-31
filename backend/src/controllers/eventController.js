@@ -1,4 +1,3 @@
-import express from "express";
 import eventModel from "../models/eventModel.js";
 
 //Fontion pour créer un nouvel event
