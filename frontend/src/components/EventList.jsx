@@ -1,281 +1,237 @@
 import { useState, useEffect } from 'react';
-import { MapPin, SlidersHorizontal } from 'lucide-react';
-import Loading, { LoadingSkeleton } from './Loading';
-import ErrorDisplay, { NetworkError, DataError, GeolocationError } from './ErrorDisplay';
-import { eventService } from '../services/eventService';
-import { geolocationService } from '../services/geolocationService';
-import { EventCard } from './EventCard';
-import { filterEvents, sortEvents } from '../utils/filters';
-import SearchBar from './SearchBar';
+import { Search } from 'lucide-react';
+import { getAllEvents } from '../services/eventService';
+import { getUserLocation, calculateDistance } from '../utils/distance';
+import EventCard from './EventCard';
+import { toast } from 'react-toastify';
+import { Link } from 'react-router-dom';
 
-const EventList = ({ searchLocation, onEventSelect, refresh }) => {
-    const [events, setEvents] = useState([]);
-    const [filteredEvents, setFilteredEvents] = useState([]);
+const EventList = () => {
+  const [events, setEvents] = useState([]);
+  const [filteredEvents, setFilteredEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [locationFilter, setLocationFilter] = useState('');
+  const [userLocation, setUserLocation] = useState(null);
+  const [locationLoading, setLocationLoading] = useState(false);
 
-    // États de chargement
-    const [loading, setLoading] = useState(true);
-    const [locationLoading, setLocationLoading] = useState(false);
-    const [filtersLoading, setFiltersLoading] = useState(false);
+  // Charger les événements
+  useEffect(() => {
+    loadEvents();
+  }, [locationFilter]);
 
-    // États d'erreur
-    const [error, setError] = useState(null);
-    const [locationError, setLocationError] = useState(null);
+  // Filtrer les événements
+  useEffect(() => {
+    let filtered = [...events];
 
-    const [userLocation, setUserLocation] = useState(null);
-
-    // États pour les filtres et le tri
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filters, setFilters] = useState({
-        category: '',
-        date: '',
-        participants: ''
-    });
-    const [sortBy, setSortBy] = useState('date_asc');
-    const [showFilters, setShowFilters] = useState(false);
-
-    // Obtenir la position de l'utilisateur avec gestion d'erreur
-    const getUserLocation = async () => {
-        try {
-            setLocationLoading(true);
-            setLocationError(null);
-            const position = await geolocationService.getCurrentPosition();
-            setUserLocation(position);
-            return position;
-        } catch (error) {
-            console.warn('Impossible d\'obtenir la position:', error.message);
-            setLocationError(error.message);
-            return null;
-        } finally {
-            setLocationLoading(false);
-        }
-    };
-
-    // Charger les événements avec gestion d'erreur complète
-    const loadEvents = async () => {
-        try {
-            setLoading(true);
-            setError(null);
-
-            let eventsData;
-            if (userLocation) {
-                eventsData = await eventService.getEventsWithDistance(
-                    userLocation.latitude,
-                    userLocation.longitude
-                );
-            } else {
-                const response = await eventService.getEvents();
-                eventsData = response.data || response;
-            }
-
-            setEvents(eventsData);
-        } catch (err) {
-            console.error('Erreur lors du chargement des événements:', err);
-            setError(err.message || 'Une erreur est survenue lors du chargement des événements');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Appliquer les filtres et le tri avec état de chargement
-    useEffect(() => {
-        setFiltersLoading(true);
-
-        // Simuler un délai pour les filtres complexes
-        const timer = setTimeout(() => {
-            let filtered = filterEvents(events, searchTerm, filters);
-            filtered = sortEvents(filtered, sortBy);
-            setFilteredEvents(filtered);
-            setFiltersLoading(false);
-        }, 300);
-
-        return () => clearTimeout(timer);
-    }, [events, searchTerm, filters, sortBy]);
-
-    // Chargement initial
-    useEffect(() => {
-        getUserLocation();
-    }, []);
-
-    // Recharger les événements quand nécessaire
-    useEffect(() => {
-        loadEvents();
-    }, [refresh, userLocation]);
-
-    // Gestionnaires
-    const handleSearchChange = (e) => {
-        setSearchTerm(e.target.value);
-    };
-
-    const handleClearSearch = () => {
-        setSearchTerm('');
-    };
-
-    const handleRetryLoadEvents = () => {
-        setError(null);
-        loadEvents();
-    };
-
-    const handleRetryGeolocation = () => {
-        setLocationError(null);
-        getUserLocation();
-    };
-
-    // Compteurs
-    const eventsCount = filteredEvents.length;
-    const totalEvents = events.length;
-
-    // État de chargement principal
-    if (loading) {
-        return (
-            <section className="space-y-6">
-                <article className="flex items-center justify-between">
-                    <div className="h-6 bg-gray-200 rounded w-32 animate-pulse"></div>
-                    <div className="flex gap-3">
-                        <div className="h-9 bg-gray-200 rounded w-32 animate-pulse"></div>
-                        <div className="h-9 bg-gray-200 rounded w-24 animate-pulse"></div>
-                    </div>
-                </article>
-                <LoadingSkeleton count={6} />
-            </section>
-        );
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (event) =>
+          event.title.toLowerCase().includes(term) ||
+          event.description.toLowerCase().includes(term)
+      );
     }
 
+    // Calculer les distances si la position de l'utilisateur est disponible
+    if (userLocation) {
+      filtered = filtered.map((event) => {
+        if (event.locationCoords?.latitude && event.locationCoords?.longitude) {
+          const distance = calculateDistance(
+            userLocation.latitude,
+            userLocation.longitude,
+            event.locationCoords.latitude,
+            event.locationCoords.longitude
+          );
+          return { ...event, distance };
+        }
+        return event;
+      });
+
+      // Trier par distance
+      filtered.sort((a, b) => {
+        if (a.distance === null && b.distance === null) return 0;
+        if (a.distance === null) return 1;
+        if (b.distance === null) return -1;
+        return a.distance - b.distance;
+      });
+    }
+
+    setFilteredEvents(filtered);
+  }, [searchTerm, events, userLocation]);
+
+  const loadEvents = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getAllEvents(locationFilter);
+      setEvents(data);
+    } catch (err) {
+      setError(err.message);
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGetLocation = async () => {
+    try {
+      setLocationLoading(true);
+      const location = await getUserLocation();
+      setUserLocation(location);
+      toast.success('Position géolocalisée avec succès !');
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
+  if (loading) {
     return (
-        <>
-            <main className="space-y-6">
-                {/* En-tête avec contrôles */}
-                <section className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                    {/* Compteur et géolocalisation */}
-                    <article className="flex items-center gap-4">
-                        <div className="text-sm text-gray-600">
-                            {loading ? (
-                                <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
-                            ) : (
-                                eventsCount === totalEvents ? (
-                                    `${totalEvents} événement${totalEvents > 1 ? 's' : ''}`
-                                ) : (
-                                    `${eventsCount} sur ${totalEvents} événement${totalEvents > 1 ? 's' : ''}`
-                                )
-                            )}
-                        </div>
-
-                        <button
-                            onClick={getUserLocation}
-                            disabled={locationLoading}
-                            className={`flex items-center gap-2 px-3 py-1 rounded-lg text-sm transition-colors ${userLocation
-                                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                } disabled:opacity-50 disabled:cursor-not-allowed`}
-                        >
-                            {locationLoading ? (
-                                <Loading size="small" text="" type="dots" />
-                            ) : (
-                                <>
-                                    <MapPin size={14} />
-                                    {userLocation ? 'Localisé' : 'Me localiser'}
-                                </>
-                            )}
-                        </button>
-                    </article>
-
-                    {/* Contrôles de tri */}
-                    <div className="flex items-center gap-3">
-                        <select
-                            value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value)}
-                            disabled={filtersLoading}
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <option value="date_asc">Date (plus proche)</option>
-                            <option value="date_desc">Date (plus lointaine)</option>
-                            <option value="name_asc">Nom (A-Z)</option>
-                            <option value="name_desc">Nom (Z-A)</option>
-                            {userLocation && <option value="distance_asc">Distance (proche)</option>}
-                            <option value="participants_asc">Participants (croissant)</option>
-                            <option value="participants_desc">Participants (décroissant)</option>
-                        </select>
-
-                        <button
-                            onClick={() => setShowFilters(!showFilters)}
-                            disabled={filtersLoading}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${showFilters || filters.category || filters.date || filters.participants
-                                    ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                } disabled:opacity-50 disabled:cursor-not-allowed`}
-                        >
-                            <SlidersHorizontal size={16} />
-                            Filtres
-                            {filtersLoading && (
-                                <div className="w-2 h-2 border border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                            )}
-                        </button>
-                    </div>
-                </section>
-
-                {/* Barre de recherche et filtres */}
-                <SearchBar
-                    value={searchTerm}
-                    onChange={handleSearchChange}
-                    onClear={handleClearSearch}
-                    showFilters={showFilters}
-                    onFiltersToggle={setShowFilters}
-                    filters={filters}
-                    onFiltersChange={setFilters}
-                    placeholder="Rechercher par titre, description ou lieu..."
-                />
-
-                {/* Affichage des erreurs */}
-                {error && (
-                    <NetworkError
-                        error={error}
-                        onRetry={handleRetryLoadEvents}
-                    />
-                )}
-
-                {locationError && (
-                    <GeolocationError
-                        error={locationError}
-                        onRetry={handleRetryGeolocation}
-                    />
-                )}
-
-                {/* État de chargement des filtres */}
-                {filtersLoading && (
-                    <div className="flex justify-center py-4">
-                        <Loading size="small" text="Application des filtres..." type="dots" />
-                    </div>
-                )}
-
-                {/* Liste des événements */}
-                <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredEvents.length === 0 && !loading && !error ? (
-                        <div className="col-span-full text-center py-12">
-                            <div className="text-gray-400 mb-4">
-                                <MapPin size={48} className="mx-auto" />
-                            </div>
-                            <p className="text-gray-500 text-lg mb-2">
-                                Aucun événement trouvé
-                            </p>
-                            <p className="text-gray-400 text-sm">
-                                {searchTerm || filters.category || filters.date || filters.participants
-                                    ? 'Essayez de modifier vos critères de recherche'
-                                    : 'Aucun événement disponible pour le moment'
-                                }
-                            </p>
-                        </div>
-                    ) : (
-                        filteredEvents.map((event) => (
-                            <EventCard
-                                key={event._id}
-                                event={event}
-                                onClick={onEventSelect}
-                            />
-                        ))
-                    )}
-                </section>
-            </main>
-        </>
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+        <div className="text-center">
+          <div className="spinner-border text-primary mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
+            <span className="visually-hidden">Chargement...</span>
+          </div>
+          <p className="text-muted">Chargement des événements...</p>
+        </div>
+      </div>
     );
+  }
+
+  if (error && events.length === 0) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+        <div className="text-center">
+          <p className="text-danger mb-4">{error}</p>
+          <button
+            onClick={loadEvents}
+            className="btn btn-primary"
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container py-4">
+      <div className="mb-4">
+        <h1 className="display-5 fw-bold text-dark mb-4">
+          Liste des Événements
+        </h1>
+
+        {/* Barre de recherche et filtres */}
+        <div className="card shadow-sm mb-4">
+          <div className="card-body">
+            <div className="row g-3 mb-3">
+              {/* Recherche par texte */}
+              <div className="col-md-6">
+                <div className="position-relative">
+                  <Search className="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" size={20} />
+                  <input
+                    type="text"
+                    placeholder="Rechercher par titre ou description..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="form-control ps-5"
+                  />
+                </div>
+              </div>
+
+              {/* Filtre par location */}
+              <div className="col-md-6">
+                <input
+                  type="text"
+                  placeholder="Filtrer par lieu..."
+                  value={locationFilter}
+                  onChange={(e) => setLocationFilter(e.target.value)}
+                  className="form-control"
+                />
+              </div>
+            </div>
+
+            {/* Bouton géolocalisation */}
+            <div className="d-flex gap-2 align-items-center">
+              {userLocation ? (
+                <button
+                  onClick={() => setUserLocation(null)}
+                  className="btn btn-outline-secondary btn-sm"
+                >
+                  Annuler la géolocalisation
+                </button>
+              ) : (
+                <button
+                  onClick={handleGetLocation}
+                  disabled={locationLoading}
+                  className="btn btn-success btn-sm"
+                >
+                  {locationLoading ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      Géolocalisation...
+                    </>
+                  ) : (
+                    'Activer la géolocalisation'
+                  )}
+                </button>
+              )}
+              {userLocation && (
+                <span className="text-success small">
+                  ✓ Tri par distance activé
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Statistiques */}
+        <div className="mb-3">
+          {filteredEvents.length === 0 ? (
+            <p className="text-muted">Aucun événement trouvé</p>
+          ) : (
+            <p className="text-muted">
+              {filteredEvents.length} événement{filteredEvents.length > 1 ? 's' : ''} trouvé
+              {filteredEvents.length !== events.length && ` sur ${events.length}`}
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="pt-4 border-top mb-4">
+            <Link
+              to="/events/new"
+              className="btn btn-primary"
+            >
+              Créer un nouvel événement
+            </Link>
+          </div>
+
+      {/* Liste des événements */}
+      {filteredEvents.length > 0 ? (
+        <div className="row g-4">
+          {filteredEvents.map((event) => (
+            <div key={event._id} className="col-md-6 col-lg-4">
+              <EventCard
+                event={event}
+                distance={event.distance || null}
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="card shadow-sm">
+          <div className="card-body text-center py-5">
+            <p className="text-muted mb-0">
+              Aucun événement ne correspond à votre recherche.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default EventList;

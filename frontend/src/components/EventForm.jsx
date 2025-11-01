@@ -1,181 +1,256 @@
 import { useState } from 'react';
-import { eventService } from '../services/eventService';
+import { useNavigate, Link } from 'react-router-dom';
+import { Calendar, MapPin, Users, FileText, ArrowLeft } from 'lucide-react';
+import { createEvent } from '../services/eventService';
+import { getUserLocation } from '../utils/distance';
+import { toast } from 'react-toastify';
 
-const EventForm = ({ show, onClose, onEventCreated, editingEvent }) => {
-    const [formData, setFormData] = useState({
-        title: '',
-        description: '',
-        location: '',
-        date: '',
-        maxParticipants: ''
-    });
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
+const EventForm = () => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    location: '',
+    date: '',
+    maxParticipants: '',
+    locationCoords: null,
+  });
 
-    // Initialiser le formulaire si on édite un événement
-    useState(() => {
-        if (editingEvent) {
-            setFormData({
-                title: editingEvent.title || '',
-                description: editingEvent.description || '',
-                location: editingEvent.location || '',
-                date: editingEvent.date ? editingEvent.date.split('T')[0] : '',
-                maxParticipants: editingEvent.maxParticipants || ''
-            });
-        } else {
-            setFormData({
-                title: '',
-                description: '',
-                location: '',
-                date: '',
-                maxParticipants: ''
-            });
-        }
-    }, [editingEvent]);
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setError(null);
+  const handleGetLocation = async () => {
+    try {
+      setLocationLoading(true);
+      const location = await getUserLocation();
+      setFormData((prev) => ({
+        ...prev,
+        locationCoords: {
+          latitude: location.latitude,
+          longitude: location.longitude,
+        },
+      }));
+      toast.success('Position géolocalisée avec succès !');
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setLocationLoading(false);
+    }
+  };
 
-        try {
-            const eventData = {
-                ...formData,
-                maxParticipants: parseInt(formData.maxParticipants),
-                currentParticipants: 0 // Initialiser à 0 pour les nouveaux événements
-            };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Validation
+    if (!formData.title.trim()) {
+      toast.error('Le titre est requis');
+      return;
+    }
+    if (!formData.description.trim()) {
+      toast.error('La description est requise');
+      return;
+    }
+    if (!formData.location.trim()) {
+      toast.error('Le lieu est requis');
+      return;
+    }
+    if (!formData.date) {
+      toast.error('La date est requise');
+      return;
+    }
+    if (!formData.maxParticipants || parseInt(formData.maxParticipants) < 1) {
+      toast.error('Le nombre de participants doit être supérieur à 0');
+      return;
+    }
 
-            if (editingEvent) {
-                // Mise à jour d'un événement existant
-                await eventService.updateEvent(editingEvent._id, eventData);
-            } else {
-                // Création d'un nouvel événement
-                await eventService.createEvent(eventData);
-            }
+    try {
+      setLoading(true);
+      
+      const eventData = {
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        location: formData.location.trim(),
+        date: formData.date,
+        maxParticipants: parseInt(formData.maxParticipants),
+        locationCoords: formData.locationCoords || undefined,
+      };
 
-            // Réinitialiser le formulaire
-            setFormData({
-                title: '',
-                description: '',
-                location: '',
-                date: '',
-                maxParticipants: ''
-            });
+      await createEvent(eventData);
+      toast.success('Événement créé avec succès !');
+      navigate('/');
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-            // Fermer le modal et notifier le parent
-            onEventCreated();
-            onClose();
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
+  return (
+    <div className="container py-4">
+      <div className="row justify-content-center">
+        <div className="col-lg-8">
+          <Link
+            to="/"
+            className="d-inline-flex align-items-center text-decoration-none text-primary mb-4"
+          >
+            <ArrowLeft size={20} className="me-2" />
+            <span>Retour à la liste</span>
+          </Link>
 
-    if (!show) return null;
+          <div className="card shadow-lg">
+            <div className="card-body p-4 p-md-5">
+              <h1 className="display-5 fw-bold text-dark mb-4">
+                Créer un nouvel événement
+              </h1>
 
-    return (
-        <>
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-                    <div className="p-6">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-2xl font-bold text-gray-900">
-                                {editingEvent ? 'Modifier l\'événement' : 'Créer un nouvel événement'}
-                            </h2>
-                            <button
-                                onClick={onClose}
-                                className="text-gray-400 hover:text-gray-600 text-2xl"
-                            >
-                                &times;
-                            </button>
-                        </div>
-
-                        {error && (
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-                                <p className="text-red-700 text-sm">{error}</p>
-                            </div>
-                        )}
-
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Titre *</label>
-                                <input
-                                    type="text"
-                                    value={formData.title}
-                                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
-                                <textarea
-                                    value={formData.description}
-                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                    rows={3}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Localisation *</label>
-                                <input
-                                    type="text"
-                                    value={formData.location}
-                                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
-                                <input
-                                    type="date"
-                                    value={formData.date}
-                                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Participants maximum *</label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={formData.maxParticipants}
-                                    onChange={(e) => setFormData({ ...formData, maxParticipants: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                    required
-                                />
-                            </div>
-
-                            <div className="flex gap-3 pt-4">
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg disabled:opacity-50"
-                                >
-                                    {loading ? 'En cours...' : (editingEvent ? 'Modifier' : 'Créer')}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={onClose}
-                                    className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-4 rounded-lg"
-                                >
-                                    Annuler
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+              <form onSubmit={handleSubmit}>
+                {/* Titre */}
+                <div className="mb-4">
+                  <label htmlFor="title" className="form-label d-flex align-items-center fw-semibold">
+                    <FileText size={20} className="me-2 text-primary" />
+                    Titre de l'événement
+                  </label>
+                  <input
+                    type="text"
+                    id="title"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleChange}
+                    required
+                    className="form-control"
+                    placeholder="Ex: Conférence sur le développement web"
+                  />
                 </div>
+
+                {/* Description */}
+                <div className="mb-4">
+                  <label htmlFor="description" className="form-label d-flex align-items-center fw-semibold">
+                    <FileText size={20} className="me-2 text-primary" />
+                    Description
+                  </label>
+                  <textarea
+                    id="description"
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                    required
+                    rows="4"
+                    className="form-control"
+                    placeholder="Décrivez votre événement..."
+                  />
+                </div>
+
+                {/* Lieu */}
+                <div className="mb-4">
+                  <label htmlFor="location" className="form-label d-flex align-items-center fw-semibold">
+                    <MapPin size={20} className="me-2 text-danger" />
+                    Lieu
+                  </label>
+                  <input
+                    type="text"
+                    id="location"
+                    name="location"
+                    value={formData.location}
+                    onChange={handleChange}
+                    required
+                    className="form-control"
+                    placeholder="Ex: Paris, France"
+                  />
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={handleGetLocation}
+                      disabled={locationLoading}
+                      className="btn btn-link p-0 text-primary text-decoration-none small"
+                    >
+                      {locationLoading ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          Géolocalisation...
+                        </>
+                      ) : (
+                        'Utiliser ma position actuelle'
+                      )}
+                    </button>
+                    {formData.locationCoords && (
+                      <span className="ms-2 text-success small">✓ Position enregistrée</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Date */}
+                <div className="mb-4">
+                  <label htmlFor="date" className="form-label d-flex align-items-center fw-semibold">
+                    <Calendar size={20} className="me-2 text-info" />
+                    Date et heure
+                  </label>
+                  <input
+                    type="datetime-local"
+                    id="date"
+                    name="date"
+                    value={formData.date}
+                    onChange={handleChange}
+                    required
+                    className="form-control"
+                  />
+                </div>
+
+                {/* Nombre de participants */}
+                <div className="mb-4">
+                  <label htmlFor="maxParticipants" className="form-label d-flex align-items-center fw-semibold">
+                    <Users size={20} className="me-2 text-success" />
+                    Nombre maximum de participants
+                  </label>
+                  <input
+                    type="number"
+                    id="maxParticipants"
+                    name="maxParticipants"
+                    value={formData.maxParticipants}
+                    onChange={handleChange}
+                    required
+                    min="1"
+                    className="form-control"
+                    placeholder="Ex: 50"
+                  />
+                </div>
+
+                {/* Boutons */}
+                <div className="d-flex gap-3 pt-3">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="btn btn-primary flex-grow-1"
+                  >
+                    {loading ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Création en cours...
+                      </>
+                    ) : (
+                      'Créer l\'événement'
+                    )}
+                  </button>
+                  <Link
+                    to="/"
+                    className="btn btn-outline-secondary"
+                  >
+                    Annuler
+                  </Link>
+                </div>
+              </form>
             </div>
-        </>
-    );
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default EventForm;

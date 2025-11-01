@@ -1,16 +1,138 @@
-# React + Vite
+# Application de Recherche d'Événements
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Une application complète de recherche d'événements avec un back-end Node.js/Express et un front-end React.
 
-Currently, two official plugins are available:
+## Fonctionnalités
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Back-end
+- ✅ API REST avec 3 endpoints :
+  - `POST /api/events` - Créer un événement
+  - `GET /api/events` - Lister tous les événements (avec filtre de localisation)
+  - `GET /api/events/:id` - Obtenir les détails d'un événement
+- ✅ Stockage en mémoire (pas de base de données requise)
+- ✅ Validation des données
 
-## React Compiler
+### Front-end
+- ✅ Affichage de la liste des événements
+- ✅ Affichage des détails d'un événement
+- ✅ Formulaire de création d'événement
+- ✅ Design moderne et responsive
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Fonctionnalités Bonus
+- ✅ Recherche et filtrage par lieu
+- ✅ Calcul de la distance depuis la localisation de l'utilisateur
+- ✅ États de chargement
+- ✅ Gestion des erreurs
 
-## Expanding the ESLint configuration
+## Structure du Projet
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```
+eventJS/
+├── server/
+│   ├── index.js          # Serveur Express principal
+│   └── routes/
+│       └── events.js      # Routes API pour les événements
+├── client/
+│   └── src/
+│       ├── App.js        # Composant principal
+│       ├── components/
+│       │   ├── EventList.js
+│       │   ├── EventDetails.js
+│       │   ├── EventForm.js
+│       │   └── SearchBar.js
+│       └── ...
+└── package.json
+```
+
+## Installation
+
+### Installation complète (recommandée)
+
+```bash
+npm run install-all
+```
+
+### Installation manuelle
+
+1. Installer les dépendances du serveur :
+```bash
+npm install
+```
+
+2. Installer les dépendances du client :
+```bash
+cd client
+npm install
+cd ..
+```
+
+## Démarrage
+
+### Option 1 : Démarrer les deux serveurs simultanément (recommandé)
+
+```bash
+npm run dev
+```
+
+Cette commande démarre :
+- Le serveur back-end sur `http://localhost:8050`
+- Le serveur React sur `http://localhost:50173`
+
+### Option 2 : Démarrer séparément
+
+**Terminal 1 - Back-end :**
+```bash
+npm run dev
+```
+
+**Terminal 2 - Front-end :**
+```bash
+npm run dev
+```
+
+## Utilisation
+
+1. Ouvrez votre navigateur à `http://localhost:5173`
+2. Explorez les événements existants
+3. Utilisez la barre de recherche pour rechercher par titre, description ou lieu
+4. Utilisez le filtre par lieu pour filtrer les événements
+5. Cliquez sur un événement pour voir ses détails
+6. Créez un nouvel événement avec le formulaire
+
+## API Endpoints
+
+### POST /api/events
+Créer un nouvel événement
+
+**Body:**
+```json
+{
+  "titre": "Nom de l'événement",
+  "description": "Description de l'événement",
+  "lieu": "Ville",
+  "date": "2024-12-31T18:00:00",
+  "maxParticipants": 100
+}
+```
+
+### GET /api/events
+Lister tous les événements
+
+**Query params (optionnel):**
+- `lieu`: Filtrer par lieu (ex: `?lieu=Paris`)
+
+### GET /api/events/:id
+Obtenir les détails d'un événement
+
+## Technologies Utilisées
+
+- **Back-end**: Node.js, Express, CORS
+- **Front-end**: React, Bootstrap
+- **Utilitaires**: UUID pour les IDs uniques
+
+## Notes
+
+- Le calcul de distance utilise la géolocalisation du navigateur (demande d'autorisation requise)
+- Les coordonnées des villes sont approximatives (Paris, Lyon, Marseille)
+- Les données sont stockées en mémoire et seront perdues au redémarrage du serveur
+

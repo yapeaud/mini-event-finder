@@ -1,64 +1,67 @@
-import { MapPin, Calendar, Users, Navigation } from 'lucide-react';
-import { formatDate } from '../utils/dateFormatter';
-import { getAvailabilityStatus } from '../utils/availabilityHelper';
+import { Calendar, MapPin, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-export const EventCard = ({ event, onClick }) => {
-    return (
-        <>
-            <main className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow cursor-pointer overflow-hidden"
-                onClick={() => onClick(event)}
-            >
-                <section className="p-6">
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">{event.title}</h3>
-                    <p className="text-gray-600 mb-4 line-clamp-2">{event.description}</p>
+const EventCard = ({ event, distance = null }) => {
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 
-                    <article className="space-y-3">
-                        <div className="flex items-center gap-2 text-gray-700">
-                            <MapPin size={16} className="text-indigo-600" />
-                            <span className="flex-1">{event.location}</span>
-                            {/* Affichage de la distance */}
-                            {event.distance && (
-                                <div className="flex items-center gap-1 text-sm text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full">
-                                    <Navigation size={12} />
-                                    <span>{event.distance} km</span>
-                                </div>
-                            )}
-                        </div>
+  return (
+    <Link
+      to={`/events/${event._id}`}
+      className="card text-decoration-none shadow-sm border-0 h-100"
+      style={{ transition: 'box-shadow 0.3s', overflow: 'hidden' }}
+      onMouseOver={(e) => e.currentTarget.classList.add('shadow')}
+      onMouseOut={(e) => e.currentTarget.classList.remove('shadow')}
+    >
+      <div className="card-body">
+        <h3 className="card-title h5 fw-bold text-dark mb-3 text-truncate">
+          {event.title}
+        </h3>
 
-                        <div className="flex items-center gap-2 text-gray-700">
-                            <Calendar size={16} className="text-indigo-600" />
-                            <span>{formatDate(event.date)}</span>
-                        </div>
+        <p className="card-text text-muted mb-4 text-truncate">
+          {event.description}
+        </p>
 
-                        <div className="flex items-center gap-2 text-gray-700">
-                            <Users size={16} className="text-indigo-600" />
-                            <span>
-                                {event.currentParticipants}/{event.maxParticipants} participants
-                            </span>
-                        </div>
+        <div className="small text-secondary">
+          <div className="d-flex align-items-center mb-2">
+            <Calendar size={16} className="text-primary me-2" />
+            <span>{formatDate(event.date)}</span>
+          </div>
 
-                        {/* Catégorie */}
-                        {event.category && (
-                            <div className="flex items-center gap-2">
-                                <span className="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded-full">
-                                    {event.category}
-                                </span>
-                            </div>
-                        )}
+          <div className="d-flex align-items-center mb-2 flex-wrap">
+            <MapPin size={16} className="text-danger me-2" />
+            <span>{event.location}</span>
+            {distance !== null && (
+              <span className="badge bg-primary ms-2">
+                {distance} km
+              </span>
+            )}
+          </div>
 
-                        <div className={`text-sm font-medium ${event.currentParticipants >= event.maxParticipants
-                            ? 'text-red-600'
-                            : event.currentParticipants >= event.maxParticipants * 0.9
-                                ? 'text-orange-600'
-                                : 'text-green-600'
-                            }`}>
-                            {event.currentParticipants >= event.maxParticipants
-                                ? 'Complet'
-                                : getAvailabilityStatus(event.currentParticipants, event.maxParticipants)}
-                        </div>
-                    </article>
-                </section>
-            </main>
-        </>
-    );
+          <div className="d-flex align-items-center">
+            <Users size={16} className="text-success me-2" />
+            <span>
+              {event.currentParticipants || 0} / {event.maxParticipants} participants
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-4 pt-3 border-top">
+          <span className="text-primary fw-semibold small">
+            Voir les détails →
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
 };
+
+export default EventCard;
