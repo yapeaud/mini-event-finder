@@ -1,13 +1,11 @@
-import { MapPin, Calendar, Users } from 'lucide-react';
+import { MapPin, Calendar, Users, Navigation } from 'lucide-react';
 import { formatDate } from '../utils/dateFormatter';
 import { getAvailabilityStatus } from '../utils/availabilityHelper';
-
 
 export const EventCard = ({ event, onClick }) => {
     return (
         <>
-            <main
-                className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow cursor-pointer overflow-hidden"
+            <main className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow cursor-pointer overflow-hidden"
                 onClick={() => onClick(event)}
             >
                 <section className="p-6">
@@ -17,7 +15,14 @@ export const EventCard = ({ event, onClick }) => {
                     <article className="space-y-3">
                         <div className="flex items-center gap-2 text-gray-700">
                             <MapPin size={16} className="text-indigo-600" />
-                            <span>{event.location}</span>
+                            <span className="flex-1">{event.location}</span>
+                            {/* Affichage de la distance */}
+                            {event.distance && (
+                                <div className="flex items-center gap-1 text-sm text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full">
+                                    <Navigation size={12} />
+                                    <span>{event.distance} km</span>
+                                </div>
+                            )}
                         </div>
 
                         <div className="flex items-center gap-2 text-gray-700">
@@ -42,10 +47,10 @@ export const EventCard = ({ event, onClick }) => {
                         )}
 
                         <div className={`text-sm font-medium ${event.currentParticipants >= event.maxParticipants
-                                ? 'text-red-600'
-                                : event.currentParticipants >= event.maxParticipants * 0.9
-                                    ? 'text-orange-600'
-                                    : 'text-green-600'
+                            ? 'text-red-600'
+                            : event.currentParticipants >= event.maxParticipants * 0.9
+                                ? 'text-orange-600'
+                                : 'text-green-600'
                             }`}>
                             {event.currentParticipants >= event.maxParticipants
                                 ? 'Complet'
@@ -55,5 +60,5 @@ export const EventCard = ({ event, onClick }) => {
                 </section>
             </main>
         </>
-    )
-}
+    );
+};

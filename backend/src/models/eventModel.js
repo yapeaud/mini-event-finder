@@ -27,7 +27,14 @@ const eventSchema = mongoose.Schema({
         type: Number,
         default: 0
     },
+     locationCoords: {
+    latitude: Number,
+    longitude: Number
+  }
+}, {
+  timestamps: true
 });
+
 
 const eventModel = mongoose.model("event", eventSchema);
 
