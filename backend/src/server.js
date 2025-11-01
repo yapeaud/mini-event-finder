@@ -3,22 +3,35 @@ import cors from 'cors'
 import 'dotenv/config'
 import { connectDB } from './config/db.js'
 import eventRoutes from './routes/eventRoutes.route.js'
-import path from 'path'
 
 // App config
 const app = express()
 const PORT = process.env.PORT || 3001
 connectDB()
 
-const __dirname = path.resolve();
+// Middleware CORS
+const allowedOrigins = process.env.NODE_ENV === 'production' 
+    ? [process.env.FRONTEND_URL].filter(Boolean) // URL du frontend en production
+    : ['http://localhost:5173', 'http://localhost:3000']; // URLs locales en développement
 
-// Middleware
-app.use(cors(
-    {
-        origin: "http://localhost:5173",
-        credentials: true
-    }
-))
+app.use(cors({
+    origin: function (origin, callback) {
+        // Autoriser les requêtes sans origine (mobile apps, curl, etc.)
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            // En production, on peut être plus permissif pour Vercel
+            if (process.env.NODE_ENV === 'production' && origin.includes('vercel.app')) {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
+        }
+    },
+    credentials: true
+}))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true })) // ← AJOUT IMPORTANT
 
@@ -52,14 +65,6 @@ app.use((error, req, res, next) => {
         error: error.message || 'Erreur interne du serveur'
     });
 });
-
-// Serve static assets in production
-if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.join(__dirname, '../frontend/dist')));
-    app.get(/.*/, (req, res) => {
-        res.sendFile(path.resolve(__dirname, '../frontend', 'dist', 'index.html'));
-    });
-}
 
 app.listen(PORT, () => {
     console.log(`Serveur en cours d'execution sur le port http://localhost:${PORT}`)
