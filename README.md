@@ -191,7 +191,7 @@ Grâce à ces outils, le développement a été accéléré, le code standardis�
 - Système de création/modification/suppression d’événements pour les utilisateurs connectés  
 - Filtrage avancé (par date, catégorie, lieu)  
 - Version mobile (PWA)  
-- Déploiement sur Vercel/Render avec CI/CD  
+
 
 ---
 
