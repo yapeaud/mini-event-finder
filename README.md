@@ -1,5 +1,4 @@
 # 🎉 mini-event-finder  
-Une application web permettant de rechercher, consulter et gérer des événements à proximité.
 
 ---
 
@@ -181,8 +180,7 @@ Authorization: Bearer <token>
 |-----------|-----------------------|
 | **GitHub Copilot** | Génération de snippets pour Express, gestion d’erreurs et logique de filtrage |
 | **ChatGPT (GPT-5)** | Rédaction de la documentation, structuration du README et optimisation du code |
-| **SonarLint** | Analyse automatique de la qualité du code et détection de mauvaises pratiques |
-| **AI UI Assistant** | Génération de palettes de couleurs et suggestions de design pour le frontend |
+
 
 Grâce à ces outils, le développement a été accéléré, le code standardisé et la documentation simplifiée.
 
