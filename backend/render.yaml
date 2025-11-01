@@ -1,9 +1,11 @@
 services:
   - type: web
-    name: mini-event-finder-backend
+    name: mini-event-finder
     env: node
-    buildCommand: npm install
-    startCommand: npm start
+    buildCommand: |
+      npm install
+      npm run build
+    startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production
@@ -11,5 +13,6 @@ services:
         sync: false
       - key: FRONTEND_URL
         sync: false
+      - key: PORT
+        value: 10000
     healthCheckPath: /
-
